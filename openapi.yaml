@@ -1,0 +1,1782 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: GHRI Foundation API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+  - name: contact
+  - name: volunteer
+  - name: newsletter
+  - name: stats
+  - name: telehealth-auth
+  - name: telehealth-appointments
+  - name: telehealth-messages
+  - name: telehealth-documents
+  - name: telehealth-prescriptions
+  - name: telehealth-admin
+  - name: patient-intake
+  - name: volunteer-auth
+  - name: volunteer-training
+  - name: volunteer-waivers
+  - name: volunteer-hours
+  - name: volunteer-events
+  - name: volunteer-messages
+  - name: volunteer-impact
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /contact:
+    post:
+      operationId: submitContact
+      tags: [contact]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContactInput"
+      responses:
+        "201":
+          description: Submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /volunteer:
+    post:
+      operationId: submitVolunteer
+      tags: [volunteer]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VolunteerInput"
+      responses:
+        "201":
+          description: Submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /newsletter:
+    post:
+      operationId: subscribeNewsletter
+      tags: [newsletter]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewsletterInput"
+      responses:
+        "201":
+          description: Subscribed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /stats:
+    get:
+      operationId: getStats
+      tags: [stats]
+      responses:
+        "200":
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImpactStats"
+
+  /blog:
+    get:
+      operationId: getBlogPosts
+      tags: [stats]
+      responses:
+        "200":
+          description: Blog posts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BlogPost"
+
+  # ── Telehealth Auth ────────────────────────────────────────────────────────
+
+  /telehealth/auth/register:
+    post:
+      operationId: telehealthRegister
+      tags: [telehealth-auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TelehealthRegisterInput"
+      responses:
+        "201":
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelehealthAuthResponse"
+        "400":
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Already registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /telehealth/auth/login:
+    post:
+      operationId: telehealthLogin
+      tags: [telehealth-auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TelehealthLoginInput"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelehealthLoginSuccess"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /telehealth/auth/mfa/setup:
+    post:
+      operationId: telehealthMfaSetup
+      tags: [telehealth-auth]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: MFA setup info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaSetupResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /telehealth/auth/mfa/verify:
+    post:
+      operationId: telehealthMfaVerify
+      tags: [telehealth-auth]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MfaVerifyInput"
+      responses:
+        "200":
+          description: MFA verified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelehealthAuthResponse"
+        "401":
+          description: Invalid code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /telehealth/auth/me:
+    get:
+      operationId: telehealthMe
+      tags: [telehealth-auth]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelehealthUserProfile"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /telehealth/auth/logout:
+    post:
+      operationId: telehealthLogout
+      tags: [telehealth-auth]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  # ── Appointments ───────────────────────────────────────────────────────────
+
+  /telehealth/appointments:
+    get:
+      operationId: getAppointments
+      tags: [telehealth-appointments]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Appointments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AppointmentWithUsers"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createAppointment
+      tags: [telehealth-appointments]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppointmentCreateInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppointmentWithUsers"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /telehealth/appointments/{id}:
+    patch:
+      operationId: updateAppointment
+      tags: [telehealth-appointments]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppointmentUpdateInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppointmentWithUsers"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Messages ───────────────────────────────────────────────────────────────
+
+  /telehealth/messages:
+    get:
+      operationId: getMessages
+      tags: [telehealth-messages]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: withUserId
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MessageWithUsers"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: sendMessage
+      tags: [telehealth-messages]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessageCreateInput"
+      responses:
+        "201":
+          description: Sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageWithUsers"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Documents ──────────────────────────────────────────────────────────────
+
+  /telehealth/documents:
+    get:
+      operationId: getDocuments
+      tags: [telehealth-documents]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Documents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MedicalDocument"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: uploadDocument
+      tags: [telehealth-documents]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentUploadInput"
+      responses:
+        "201":
+          description: Uploaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MedicalDocument"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Prescriptions ──────────────────────────────────────────────────────────
+
+  /telehealth/prescriptions:
+    get:
+      operationId: getPrescriptions
+      tags: [telehealth-prescriptions]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Prescriptions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PrescriptionWithUsers"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createPrescription
+      tags: [telehealth-prescriptions]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PrescriptionCreateInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrescriptionWithUsers"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Providers only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Providers & Patients ───────────────────────────────────────────────────
+
+  /telehealth/providers:
+    get:
+      operationId: getProviders
+      tags: [telehealth-appointments]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Providers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TelehealthUserProfile"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /telehealth/patients:
+    get:
+      operationId: getPatients
+      tags: [telehealth-admin]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Patients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TelehealthUserProfile"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Providers only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /telehealth/audit-logs:
+    get:
+      operationId: getAuditLogs
+      tags: [telehealth-admin]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Audit logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditLogEntry"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /telehealth/intake:
+    get:
+      operationId: getIntakeForm
+      tags: [patient-intake]
+      summary: Get patient intake form
+      security: [{bearerAuth: []}]
+      responses:
+        "200":
+          description: Intake form or null
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntakeFormResponse"
+    post:
+      operationId: submitIntakeForm
+      tags: [patient-intake]
+      summary: Create or update intake form
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IntakeFormInput"
+      responses:
+        "201":
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntakeFormResponse"
+
+  /volunteers/auth/register:
+    post:
+      operationId: volRegister
+      tags: [volunteer-auth]
+      summary: Register as volunteer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VolRegisterInput"
+      responses:
+        "201":
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VolAuthResponse"
+
+  /volunteers/auth/login:
+    post:
+      operationId: volLogin
+      tags: [volunteer-auth]
+      summary: Login to volunteer portal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VolLoginInput"
+      responses:
+        "200":
+          description: Login success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VolAuthResponse"
+
+  /volunteers/auth/logout:
+    post:
+      operationId: volLogout
+      tags: [volunteer-auth]
+      summary: Logout from volunteer portal
+      security: [{bearerAuth: []}]
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /volunteers/auth/me:
+    get:
+      operationId: volMe
+      tags: [volunteer-auth]
+      summary: Get current volunteer profile
+      security: [{bearerAuth: []}]
+      responses:
+        "200":
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VolUserProfile"
+
+  /volunteers/training:
+    get:
+      operationId: getVolTraining
+      tags: [volunteer-training]
+      summary: List training resources with completion status
+      security: [{bearerAuth: []}]
+      responses:
+        "200":
+          description: Training resources
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VolTrainingResource"
+
+  /volunteers/training/{id}/complete:
+    post:
+      operationId: completeVolTraining
+      tags: [volunteer-training]
+      summary: Mark training resource as complete
+      security: [{bearerAuth: []}]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VolCompleteTrainingInput"
+      responses:
+        "200":
+          description: Completed
+
+  /volunteers/waivers:
+    get:
+      operationId: getVolWaivers
+      tags: [volunteer-waivers]
+      summary: List waivers with signature status
+      security: [{bearerAuth: []}]
+      responses:
+        "200":
+          description: Waivers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VolWaiver"
+
+  /volunteers/waivers/{id}/sign:
+    post:
+      operationId: signVolWaiver
+      tags: [volunteer-waivers]
+      summary: Sign a waiver
+      security: [{bearerAuth: []}]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VolWaiverSignInput"
+      responses:
+        "200":
+          description: Signed
+
+  /volunteers/hours:
+    get:
+      operationId: getVolHours
+      tags: [volunteer-hours]
+      summary: List service hours
+      security: [{bearerAuth: []}]
+      responses:
+        "200":
+          description: Hours
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VolServiceHoursEntry"
+    post:
+      operationId: logVolHours
+      tags: [volunteer-hours]
+      summary: Log service hours
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VolHoursInput"
+      responses:
+        "201":
+          description: Logged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VolServiceHoursEntry"
+
+  /volunteers/hours/{id}:
+    patch:
+      operationId: reviewVolHours
+      tags: [volunteer-hours]
+      summary: Approve or reject service hours (coordinator only)
+      security: [{bearerAuth: []}]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VolHoursUpdateInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VolServiceHoursEntry"
+
+  /volunteers/events:
+    get:
+      operationId: getVolEvents
+      tags: [volunteer-events]
+      summary: List volunteer events
+      security: [{bearerAuth: []}]
+      responses:
+        "200":
+          description: Events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VolEvent"
+    post:
+      operationId: createVolEvent
+      tags: [volunteer-events]
+      summary: Create event (coordinator only)
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VolEventInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VolEvent"
+
+  /volunteers/events/{id}:
+    patch:
+      operationId: updateVolEvent
+      tags: [volunteer-events]
+      summary: Update or cancel an event (coordinator only)
+      security: [{bearerAuth: []}]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VolEventUpdateInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VolEvent"
+    delete:
+      operationId: deleteVolEvent
+      tags: [volunteer-events]
+      summary: Delete an event (coordinator only)
+      security: [{bearerAuth: []}]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+
+  /volunteers/events/{id}/registrations:
+    get:
+      operationId: getVolEventRegistrations
+      tags: [volunteer-events]
+      summary: List volunteers registered for an event (coordinator only)
+      security: [{bearerAuth: []}]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Registrants
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VolEventRegistrant"
+
+  /volunteers/events/{id}/register:
+    post:
+      operationId: registerVolEvent
+      tags: [volunteer-events]
+      summary: Register for event
+      security: [{bearerAuth: []}]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Registered
+    delete:
+      operationId: cancelVolEventRegistration
+      tags: [volunteer-events]
+      summary: Cancel event registration
+      security: [{bearerAuth: []}]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Cancelled
+
+  /volunteers/messages:
+    get:
+      operationId: getVolMessages
+      tags: [volunteer-messages]
+      summary: Get messages
+      security: [{bearerAuth: []}]
+      responses:
+        "200":
+          description: Messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VolMessage"
+    post:
+      operationId: sendVolMessage
+      tags: [volunteer-messages]
+      summary: Send a message
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VolMessageInput"
+      responses:
+        "201":
+          description: Sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VolMessage"
+
+  /volunteers/impact:
+    get:
+      operationId: getVolImpact
+      tags: [volunteer-impact]
+      summary: Get impact metrics
+      security: [{bearerAuth: []}]
+      responses:
+        "200":
+          description: Metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VolImpactMetrics"
+
+  /volunteers/coordinators:
+    get:
+      operationId: getVolCoordinators
+      tags: [volunteer-messages]
+      summary: List coordinators (for messaging)
+      security: [{bearerAuth: []}]
+      responses:
+        "200":
+          description: Coordinators
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VolUserProfile"
+
+  /volunteers/directory:
+    get:
+      operationId: getVolDirectory
+      tags: [volunteer-messages]
+      summary: List messageable contacts (role-aware)
+      description: Coordinators can message anyone; volunteers can only message coordinators.
+      security: [{bearerAuth: []}]
+      responses:
+        "200":
+          description: Contacts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VolUserProfile"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+        database:
+          type: string
+          enum: [ok, unavailable]
+      required: [status]
+
+    SuccessResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required: [message]
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+
+    ContactInput:
+      type: object
+      required: [name, email, message]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          format: email
+        subject:
+          type: ["string", "null"]
+        message:
+          type: string
+          minLength: 1
+
+    VolunteerInput:
+      type: object
+      required: [name, email, profession, interestArea]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          format: email
+        profession:
+          type: string
+        interestArea:
+          type: string
+          enum:
+            - healthcare_professional
+            - student_volunteer
+            - community_outreach
+            - fundraising
+            - technology
+
+    NewsletterInput:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: ["string", "null"]
+
+    ImpactStats:
+      type: object
+      properties:
+        ruralCommunitiesReached:
+          type: integer
+        healthcarePartnerships:
+          type: integer
+        volunteerProfessionals:
+          type: integer
+        livesImpacted:
+          type: integer
+      required:
+        - ruralCommunitiesReached
+        - healthcarePartnerships
+        - volunteerProfessionals
+        - livesImpacted
+
+    BlogPost:
+      type: object
+      required: [id, title, excerpt, category, publishedAt, slug]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        excerpt:
+          type: string
+        category:
+          type: string
+        publishedAt:
+          type: string
+        slug:
+          type: string
+        imageUrl:
+          type: ["string", "null"]
+
+    # ── Telehealth Schemas ───────────────────────────────────────────────────
+
+    TelehealthRegisterInput:
+      type: object
+      required: [email, password, name, role, consentedToTerms]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        name:
+          type: string
+          minLength: 1
+        role:
+          type: string
+          enum: [patient, provider]
+        specialty:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        consentedToTerms:
+          type: boolean
+
+    TelehealthLoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    TelehealthLoginSuccess:
+      type: object
+      required: [token, user, mfaRequired]
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/TelehealthUserProfile"
+        mfaRequired:
+          type: boolean
+        mfaSetupRequired:
+          type: boolean
+
+    TelehealthAuthResponse:
+      type: object
+      required: [token, user]
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/TelehealthUserProfile"
+
+    TelehealthUserProfile:
+      type: object
+      required: [id, email, name, role, mfaEnabled]
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+          enum: [patient, provider]
+        specialty:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        mfaEnabled:
+          type: boolean
+
+    MfaSetupResponse:
+      type: object
+      required: [secret, otpauthUrl, backupCodes]
+      properties:
+        secret:
+          type: string
+        otpauthUrl:
+          type: string
+        backupCodes:
+          type: array
+          items:
+            type: string
+
+    MfaVerifyInput:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+        action:
+          type: string
+          enum: [enable, login]
+
+    AppointmentWithUsers:
+      type: object
+      required: [id, patientId, providerId, scheduledAt, status, type, createdAt]
+      properties:
+        id:
+          type: integer
+        patientId:
+          type: integer
+        providerId:
+          type: integer
+        scheduledAt:
+          type: string
+        status:
+          type: string
+          enum: [scheduled, confirmed, in_progress, completed, cancelled]
+        type:
+          type: string
+          enum: [video, phone, follow_up]
+        notes:
+          type: ["string", "null"]
+        videoRoomUrl:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        patientName:
+          type: ["string", "null"]
+        providerName:
+          type: ["string", "null"]
+        providerSpecialty:
+          type: ["string", "null"]
+
+    AppointmentCreateInput:
+      type: object
+      required: [providerId, scheduledAt, type]
+      properties:
+        providerId:
+          type: integer
+        scheduledAt:
+          type: string
+        type:
+          type: string
+          enum: [video, phone, follow_up]
+        notes:
+          type: ["string", "null"]
+
+    AppointmentUpdateInput:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [scheduled, confirmed, in_progress, completed, cancelled]
+        notes:
+          type: ["string", "null"]
+        videoRoomUrl:
+          type: ["string", "null"]
+
+    MessageWithUsers:
+      type: object
+      required: [id, senderId, recipientId, content, isRead, createdAt]
+      properties:
+        id:
+          type: integer
+        senderId:
+          type: integer
+        recipientId:
+          type: integer
+        content:
+          type: string
+        isRead:
+          type: boolean
+        createdAt:
+          type: string
+        senderName:
+          type: ["string", "null"]
+        recipientName:
+          type: ["string", "null"]
+
+    MessageCreateInput:
+      type: object
+      required: [recipientId, content]
+      properties:
+        recipientId:
+          type: integer
+        content:
+          type: string
+          minLength: 1
+
+    MedicalDocument:
+      type: object
+      required: [id, patientId, uploadedById, filename, documentType, createdAt]
+      properties:
+        id:
+          type: integer
+        patientId:
+          type: integer
+        uploadedById:
+          type: integer
+        filename:
+          type: string
+        documentType:
+          type: string
+          enum: [lab_result, imaging, referral, insurance, consent, other]
+        fileSizeBytes:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+        uploaderName:
+          type: ["string", "null"]
+
+    DocumentUploadInput:
+      type: object
+      required: [filename, documentType]
+      properties:
+        filename:
+          type: string
+        documentType:
+          type: string
+          enum: [lab_result, imaging, referral, insurance, consent, other]
+        patientId:
+          type: ["integer", "null"]
+        fileSizeBytes:
+          type: ["integer", "null"]
+
+    PrescriptionWithUsers:
+      type: object
+      required: [id, patientId, providerId, medication, dosage, frequency, status, prescribedAt]
+      properties:
+        id:
+          type: integer
+        patientId:
+          type: integer
+        providerId:
+          type: integer
+        medication:
+          type: string
+        dosage:
+          type: string
+        frequency:
+          type: string
+        instructions:
+          type: ["string", "null"]
+        refills:
+          type: integer
+        status:
+          type: string
+          enum: [active, completed, cancelled]
+        prescribedAt:
+          type: string
+        patientName:
+          type: ["string", "null"]
+        providerName:
+          type: ["string", "null"]
+
+    PrescriptionCreateInput:
+      type: object
+      required: [patientId, medication, dosage, frequency]
+      properties:
+        patientId:
+          type: integer
+        medication:
+          type: string
+        dosage:
+          type: string
+        frequency:
+          type: string
+        instructions:
+          type: ["string", "null"]
+        refills:
+          type: integer
+
+    AuditLogEntry:
+      type: object
+      required: [id, action, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: ["integer", "null"]
+        action:
+          type: string
+        resourceType:
+          type: ["string", "null"]
+        resourceId:
+          type: ["string", "null"]
+        ipAddress:
+          type: ["string", "null"]
+        details:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    IntakeFormResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        patientId:
+          type: integer
+        bloodType:
+          type: ["string", "null"]
+        emergencyContactName:
+          type: ["string", "null"]
+        emergencyContactPhone:
+          type: ["string", "null"]
+        medicalHistory:
+          nullable: true
+        allergies:
+          nullable: true
+        currentMedications:
+          nullable: true
+        insuranceInfo:
+          nullable: true
+        completedAt:
+          type: ["string", "null"]
+        updatedAt:
+          type: string
+
+    IntakeFormInput:
+      type: object
+      properties:
+        bloodType:
+          type: string
+        emergencyContactName:
+          type: string
+        emergencyContactPhone:
+          type: string
+        medicalHistory:
+          type: object
+        allergies:
+          type: object
+        currentMedications:
+          type: object
+        insuranceInfo:
+          type: object
+
+    VolUserProfile:
+      type: object
+      required: [id, email, name, role, status]
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+          enum: [volunteer, coordinator]
+        status:
+          type: string
+          enum: [pending, active, inactive]
+        avatarInitials:
+          type: ["string", "null"]
+        skills:
+          type: ["string", "null"]
+        availability:
+          type: ["string", "null"]
+        bio:
+          type: ["string", "null"]
+
+    VolAuthResponse:
+      type: object
+      required: [token, user]
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/VolUserProfile"
+
+    VolCompleteTrainingInput:
+      type: object
+      properties:
+        score:
+          type: integer
+
+    VolWaiverSignInput:
+      type: object
+      properties:
+        signatureData:
+          type: string
+
+    VolRegisterInput:
+      type: object
+      required: [email, password, name, consentedToTerms]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+        name:
+          type: string
+        phone:
+          type: string
+        skills:
+          type: string
+        availability:
+          type: string
+        consentedToTerms:
+          type: boolean
+
+    VolLoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+
+    VolTrainingResource:
+      type: object
+      required: [id, title, resourceType, required, sortOrder, createdAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        content:
+          type: ["string", "null"]
+        resourceType:
+          type: string
+          enum: [video, document, quiz, article]
+        url:
+          type: ["string", "null"]
+        durationMinutes:
+          type: ["integer", "null"]
+        required:
+          type: boolean
+        sortOrder:
+          type: integer
+        completed:
+          type: boolean
+        completedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    VolWaiver:
+      type: object
+      required: [id, title, content, version, required, createdAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        content:
+          type: string
+        version:
+          type: string
+        required:
+          type: boolean
+        signed:
+          type: boolean
+        signedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    VolServiceHoursEntry:
+      type: object
+      required: [id, volunteerId, description, hours, serviceDate, status, createdAt]
+      properties:
+        id:
+          type: integer
+        volunteerId:
+          type: integer
+        eventId:
+          type: ["integer", "null"]
+        description:
+          type: string
+        hours:
+          type: number
+        serviceDate:
+          type: string
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        reviewNotes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    VolHoursInput:
+      type: object
+      required: [description, hours, serviceDate]
+      properties:
+        description:
+          type: string
+        hours:
+          type: number
+        serviceDate:
+          type: string
+        eventId:
+          type: integer
+
+    VolHoursUpdateInput:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [approved, rejected]
+        reviewNotes:
+          type: string
+
+    VolEvent:
+      type: object
+      required: [id, title, startTime, endTime, status, createdAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+        startTime:
+          type: string
+        endTime:
+          type: string
+        maxVolunteers:
+          type: ["integer", "null"]
+        coordinatorId:
+          type: ["integer", "null"]
+        status:
+          type: string
+          enum: [upcoming, active, completed, cancelled]
+        category:
+          type: ["string", "null"]
+        registered:
+          type: boolean
+        registrationCount:
+          type: integer
+        createdAt:
+          type: string
+
+    VolEventRegistrant:
+      type: object
+      required: [id, volunteerId, name, email, status, registeredAt]
+      properties:
+        id:
+          type: integer
+        volunteerId:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        avatarInitials:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [registered, attended, cancelled]
+        registeredAt:
+          type: string
+
+    VolEventInput:
+      type: object
+      required: [title, startTime, endTime]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        location:
+          type: string
+        startTime:
+          type: string
+        endTime:
+          type: string
+        maxVolunteers:
+          type: integer
+        category:
+          type: string
+
+    VolEventUpdateInput:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+        startTime:
+          type: string
+        endTime:
+          type: string
+        maxVolunteers:
+          type: ["integer", "null"]
+        category:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [upcoming, active, completed, cancelled]
+
+    VolMessage:
+      type: object
+      required: [id, senderId, recipientId, content, isRead, createdAt]
+      properties:
+        id:
+          type: integer
+        senderId:
+          type: integer
+        recipientId:
+          type: integer
+        content:
+          type: string
+        isRead:
+          type: boolean
+        createdAt:
+          type: string
+
+    VolMessageInput:
+      type: object
+      required: [recipientId, content]
+      properties:
+        recipientId:
+          type: integer
+        content:
+          type: string
+
+    VolImpactMetrics:
+      type: object
+      required: [approvedHours, eventsAttended]
+      properties:
+        approvedHours:
+          type: number
+        eventsAttended:
+          type: integer
+        activeVolunteers:
+          type: integer
