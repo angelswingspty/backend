@@ -27,6 +27,7 @@ export async function createTelehealthSession(
   token: string,
   ipAddress?: string | null,
   userAgent?: string | null,
+  otpVerified = false,
 ): Promise<void> {
   await db.insert(telehealthSessionsTable).values({
     userId,
@@ -34,13 +35,14 @@ export async function createTelehealthSession(
     expiresAt: new Date(Date.now() + SESSION_DURATION_MS),
     ipAddress: ipAddress ?? null,
     userAgent: userAgent ?? null,
+    otpVerified,
   });
 }
 
 export async function validateTelehealthSession(
   db: Database,
   token: string,
-): Promise<{ userId: number; role: string } | null> {
+): Promise<{ userId: number; role: string; otpVerified: boolean } | null> {
   const payload = verifyTelehealthToken(token);
   if (!payload) return null;
 
@@ -63,7 +65,11 @@ export async function validateTelehealthSession(
     .set({ lastActive: new Date() })
     .where(eq(telehealthSessionsTable.tokenHash, tokenHash));
 
-  return { userId: payload.sub, role: payload.role };
+  return {
+    userId: payload.sub,
+    role: payload.role,
+    otpVerified: session.otpVerified,
+  };
 }
 
 export async function invalidateTelehealthSession(

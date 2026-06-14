@@ -19,10 +19,15 @@ function publicUser(user: typeof volUsersTable.$inferSelect) {
     name: user.name,
     role: user.role,
     status: user.status,
+    phone: user.phone,
     avatarInitials: user.avatarInitials,
+    profilePictureUrl: user.profilePictureUrl,
     skills: user.skills,
     availability: user.availability,
     bio: user.bio,
+    notifyEmail: user.notifyEmail,
+    notifyEvents: user.notifyEvents,
+    notifyMessages: user.notifyMessages,
   };
 }
 
@@ -67,6 +72,8 @@ async function requireVolunteerAuth(
 
   request.volUser = user;
 }
+
+export { requireVolunteerAuth, publicUser as publicVolUser };
 
 declare module "fastify" {
   interface FastifyRequest {

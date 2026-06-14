@@ -45,11 +45,17 @@ export const telehealthUsersTable = app.table("telehealth_users", {
   name: text("name").notNull(),
   specialty: text("specialty"),
   phone: text("phone"),
+  profilePictureUrl: text("profile_picture_url"),
+  notifyEmail: boolean("notify_email").default(true).notNull(),
+  notifyAppointments: boolean("notify_appointments").default(true).notNull(),
+  notifyMessages: boolean("notify_messages").default(true).notNull(),
+  notifySecurity: boolean("notify_security").default(true).notNull(),
   mfaSecret: text("mfa_secret"),
-  mfaEnabled: boolean("mfa_enabled").default(false).notNull(),
+  mfaEnabled: boolean("mfa_enabled").default(true).notNull(),
   mfaBackupCodes: text("mfa_backup_codes"),
   consentedAt: timestamp("consented_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const telehealthSessionsTable = app.table("telehealth_sessions", {
@@ -58,6 +64,7 @@ export const telehealthSessionsTable = app.table("telehealth_sessions", {
     .notNull()
     .references(() => telehealthUsersTable.id, { onDelete: "cascade" }),
   tokenHash: text("token_hash").notNull().unique(),
+  otpVerified: boolean("otp_verified").default(false).notNull(),
   lastActive: timestamp("last_active").defaultNow().notNull(),
   expiresAt: timestamp("expires_at").notNull(),
   ipAddress: text("ip_address"),
@@ -148,6 +155,17 @@ export const auditLogsTable = app.table("audit_logs", {
   ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
   details: text("details"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const telehealthEmailOtpsTable = app.table("telehealth_email_otps", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => telehealthUsersTable.id, { onDelete: "cascade" }),
+  codeHash: text("code_hash").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  attempts: integer("attempts").default(0).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

@@ -1,0 +1,1 @@
+ALTER TABLE "ghri_mock"."telehealth_sessions" ADD COLUMN "otp_verified" boolean DEFAULT false NOT NULL;

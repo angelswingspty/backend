@@ -34,6 +34,13 @@ const envSchema = z
     FRONTEND_URL: z.string().url().default("http://localhost:3000"),
     STRIPE_SECRET_KEY: z.string().optional(),
     STRIPE_WEBHOOK_SECRET: z.string().optional(),
+    SMTP_HOST: z.string().optional(),
+    SMTP_PORT: z.coerce.number().int().positive().optional(),
+    SMTP_SECURE: z.coerce.boolean().optional(),
+    SMTP_USER: z.string().optional(),
+    SMTP_PASSWORD: z.string().optional(),
+    EMAIL_FROM: z.string().optional(),
+    RESEND_API_KEY: z.string().optional(),
   })
   .superRefine((value, ctx) => {
     const hasUrl = Boolean(value.DATABASE_URL?.trim());

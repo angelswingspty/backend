@@ -44,13 +44,17 @@ import type { FastifyPluginAsync } from "fastify";
 import { healthRoutes } from "./health.js";
 import { donationRoutes } from "./donations.js";
 import { volunteerAuthRoutes } from "./volunteer-auth.js";
+import { volunteerProfileRoutes } from "./volunteer-profile.js";
 import { telehealthAuthRoutes } from "./telehealth-auth.js";
+import { telehealthProfileRoutes } from "./telehealth-profile.js";
 
 export const apiRoutes: FastifyPluginAsync = async (app) => {
   await app.register(healthRoutes);
   await app.register(donationRoutes);
   await app.register(volunteerAuthRoutes);
+  await app.register(volunteerProfileRoutes);
   await app.register(telehealthAuthRoutes);
+  await app.register(telehealthProfileRoutes);
 
   // TODO: register route modules as they are ported from the Express server
   // await app.register(publicRoutes);

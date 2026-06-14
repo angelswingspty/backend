@@ -6,16 +6,17 @@ import {
   getUserAgent,
   makeTelehealthToken,
 } from "../lib/auth-utils.js";
+import {
+  createAndSendEmailOtp,
+  verifyEmailOtp,
+} from "../lib/email-otp.js";
+import { EmailDeliveryError, isEmailConfigured } from "../lib/email.js";
 import { logAudit } from "../lib/telehealth-audit.js";
 import {
   createTelehealthSession,
-  generateBackupCodes,
-  generateMfaSecret,
-  getMfaOtpauthUrl,
   hashPassword,
   invalidateTelehealthSession,
   validateTelehealthSession,
-  verifyMfaToken,
   verifyPassword,
 } from "../lib/telehealth-crypto.js";
 import {
@@ -31,24 +32,31 @@ function safeUser(user: typeof telehealthUsersTable.$inferSelect) {
     role: user.role,
     specialty: user.specialty,
     phone: user.phone,
+    profilePictureUrl: user.profilePictureUrl,
     mfaEnabled: user.mfaEnabled,
+    notifyEmail: user.notifyEmail,
+    notifyAppointments: user.notifyAppointments,
+    notifyMessages: user.notifyMessages,
+    notifySecurity: user.notifySecurity,
   };
 }
 
-async function requireTelehealthAuth(
+async function loadTelehealthSession(
   request: FastifyRequest,
   reply: FastifyReply,
-) {
+): Promise<boolean> {
   const token = getBearerToken(request.headers.authorization);
   if (!token) {
-    return reply.status(401).send({ error: "Authentication required" });
+    reply.status(401).send({ error: "Authentication required" });
+    return false;
   }
 
   const session = await validateTelehealthSession(request.server.db, token);
   if (!session) {
-    return reply
+    reply
       .status(401)
       .send({ error: "Session expired or invalid. Please log in again." });
+    return false;
   }
 
   const [user] = await request.server.db
@@ -58,13 +66,39 @@ async function requireTelehealthAuth(
     .limit(1);
 
   if (!user) {
-    return reply.status(401).send({ error: "User not found" });
+    reply.status(401).send({ error: "User not found" });
+    return false;
   }
 
   request.telehealthUser = user;
+  request.telehealthSession = session;
+  return true;
+}
+
+async function requireTelehealthAuth(
+  request: FastifyRequest,
+  reply: FastifyReply,
+) {
+  await loadTelehealthSession(request, reply);
+}
+
+async function requireVerifiedTelehealthAuth(
+  request: FastifyRequest,
+  reply: FastifyReply,
+) {
+  const ok = await loadTelehealthSession(request, reply);
+  if (!ok || reply.sent) return;
+
+  if (!request.telehealthSession!.otpVerified) {
+    reply.status(403).send({
+      error: "Email verification required",
+      mfaRequired: true,
+    });
+    return;
+  }
 
   await logAudit(request.server.db, "PHI_ACCESS", {
-    userId: user.id,
+    userId: request.telehealthUser!.id,
     resourceType: "endpoint",
     resourceId: `${request.method} ${request.url}`,
     ipAddress: getClientIp(request),
@@ -75,7 +109,50 @@ async function requireTelehealthAuth(
 declare module "fastify" {
   interface FastifyRequest {
     telehealthUser?: typeof telehealthUsersTable.$inferSelect;
+    telehealthSession?: { userId: number; role: string; otpVerified: boolean };
   }
+}
+
+async function issueEmailOtpChallenge(
+  app: Parameters<FastifyPluginAsync>[0],
+  request: FastifyRequest,
+  reply: FastifyReply,
+  user: typeof telehealthUsersTable.$inferSelect,
+  token: string,
+) {
+  if (!isEmailConfigured()) {
+    return reply.status(503).send({
+      error:
+        "Email delivery is not configured. An administrator must set RESEND_API_KEY or SMTP credentials before users can sign in.",
+    });
+  }
+
+  let otpResult;
+  try {
+    otpResult = await createAndSendEmailOtp(app.db, user);
+  } catch (error) {
+    request.log.error({ err: error, userId: user.id }, "Failed to send email OTP");
+    const message =
+      error instanceof EmailDeliveryError
+        ? error.message
+        : "Unable to send verification email. Please try again.";
+    return reply.status(503).send({ error: message });
+  }
+
+  if (!user.mfaEnabled) {
+    await app.db
+      .update(telehealthUsersTable)
+      .set({ mfaEnabled: true })
+      .where(eq(telehealthUsersTable.id, user.id));
+  }
+
+  return {
+    token,
+    user: safeUser({ ...user, mfaEnabled: true }),
+    mfaRequired: true,
+    emailOtpSent: true,
+    maskedEmail: otpResult.maskedEmail,
+  };
 }
 
 export const telehealthAuthRoutes: FastifyPluginAsync = async (app) => {
@@ -136,6 +213,7 @@ export const telehealthAuthRoutes: FastifyPluginAsync = async (app) => {
         specialty: specialty ?? null,
         phone: phone ?? null,
         consentedAt: new Date(),
+        mfaEnabled: true,
       })
       .returning();
 
@@ -157,6 +235,7 @@ export const telehealthAuthRoutes: FastifyPluginAsync = async (app) => {
       token,
       getClientIp(request),
       getUserAgent(request),
+      false,
     );
 
     await logAudit(app.db, "REGISTER", {
@@ -165,7 +244,9 @@ export const telehealthAuthRoutes: FastifyPluginAsync = async (app) => {
       userAgent: getUserAgent(request),
     });
 
-    return reply.status(201).send({ token, user: safeUser(user) });
+    const challenge = await issueEmailOtpChallenge(app, request, reply, user, token);
+    if (reply.sent) return;
+    return reply.status(201).send(challenge);
   });
 
   app.post("/telehealth/auth/login", async (request, reply) => {
@@ -203,6 +284,7 @@ export const telehealthAuthRoutes: FastifyPluginAsync = async (app) => {
       token,
       getClientIp(request),
       getUserAgent(request),
+      false,
     );
 
     await logAudit(app.db, "LOGIN", {
@@ -211,37 +293,46 @@ export const telehealthAuthRoutes: FastifyPluginAsync = async (app) => {
       userAgent: getUserAgent(request),
     });
 
-    return {
-      token,
-      user: safeUser(user),
-      mfaRequired: user.mfaEnabled,
-      mfaSetupRequired: !user.mfaEnabled,
-    };
+    const challenge = await issueEmailOtpChallenge(app, request, reply, user, token);
+    if (reply.sent) return;
+    return challenge;
   });
 
   app.post(
     "/telehealth/auth/mfa/setup",
     { preHandler: requireTelehealthAuth },
-    async (request) => {
+    async (request, reply) => {
       const user = request.telehealthUser!;
-      const secret = generateMfaSecret();
-      const backupCodes = generateBackupCodes();
 
-      await app.db
-        .update(telehealthUsersTable)
-        .set({ mfaSecret: secret, mfaBackupCodes: JSON.stringify(backupCodes) })
-        .where(eq(telehealthUsersTable.id, user.id));
+      if (!isEmailConfigured()) {
+        return reply.status(503).send({
+          error:
+            "Email delivery is not configured. An administrator must set RESEND_API_KEY or SMTP credentials.",
+        });
+      }
 
-      await logAudit(app.db, "MFA_SETUP_INITIATED", {
+      let otpResult;
+      try {
+        otpResult = await createAndSendEmailOtp(app.db, user);
+      } catch (error) {
+        request.log.error({ err: error, userId: user.id }, "Failed to resend email OTP");
+        const message =
+          error instanceof EmailDeliveryError
+            ? error.message
+            : "Unable to send verification email. Please try again.";
+        return reply.status(503).send({ error: message });
+      }
+
+      await logAudit(app.db, "EMAIL_OTP_SENT", {
         userId: user.id,
         ipAddress: getClientIp(request),
         userAgent: getUserAgent(request),
       });
 
       return {
-        secret,
-        otpauthUrl: getMfaOtpauthUrl(secret, user.email),
-        backupCodes,
+        message: "Verification code sent to your email",
+        emailSent: true,
+        maskedEmail: otpResult.maskedEmail,
       };
     },
   );
@@ -250,33 +341,43 @@ export const telehealthAuthRoutes: FastifyPluginAsync = async (app) => {
     "/telehealth/auth/mfa/verify",
     { preHandler: requireTelehealthAuth },
     async (request, reply) => {
-      const body = request.body as { code?: string; action?: string };
+      const body = request.body as { code?: string };
       const user = request.telehealthUser!;
+      const code = String(body.code ?? "").trim();
+      const currentToken = getBearerToken(request.headers.authorization)!;
 
-      if (!user.mfaSecret) {
+      if (!/^\d{6}$/.test(code)) {
         return reply
           .status(400)
-          .send({ error: "MFA not set up. Call /mfa/setup first." });
+          .send({ error: "Enter the 6-digit code from your email" });
       }
 
-      const valid = verifyMfaToken(user.mfaSecret, String(body.code ?? ""));
-      if (!valid) {
-        await logAudit(app.db, "MFA_VERIFY_FAILED", {
+      const result = await verifyEmailOtp(app.db, user.id, code);
+
+      if (result === "expired") {
+        return reply
+          .status(401)
+          .send({ error: "This code has expired. Request a new one." });
+      }
+
+      if (result === "locked") {
+        return reply.status(429).send({
+          error: "Too many failed attempts. Request a new code and try again.",
+        });
+      }
+
+      if (result === "invalid") {
+        await logAudit(app.db, "EMAIL_OTP_VERIFY_FAILED", {
           userId: user.id,
           ipAddress: getClientIp(request),
           userAgent: getUserAgent(request),
         });
-        return reply.status(401).send({ error: "Invalid authentication code" });
+        return reply.status(401).send({ error: "Invalid verification code" });
       }
 
-      if (body.action === "enable" || !body.action) {
-        await app.db
-          .update(telehealthUsersTable)
-          .set({ mfaEnabled: true })
-          .where(eq(telehealthUsersTable.id, user.id));
-      }
+      await invalidateTelehealthSession(app.db, currentToken);
 
-      await logAudit(app.db, "MFA_VERIFIED", {
+      await logAudit(app.db, "EMAIL_OTP_VERIFIED", {
         userId: user.id,
         ipAddress: getClientIp(request),
         userAgent: getUserAgent(request),
@@ -289,11 +390,13 @@ export const telehealthAuthRoutes: FastifyPluginAsync = async (app) => {
         token,
         getClientIp(request),
         getUserAgent(request),
+        true,
       );
 
       return {
         token,
         user: safeUser({ ...user, mfaEnabled: true }),
+        otpVerified: true,
       };
     },
   );
@@ -301,7 +404,10 @@ export const telehealthAuthRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/telehealth/auth/me",
     { preHandler: requireTelehealthAuth },
-    async (request) => safeUser(request.telehealthUser!),
+    async (request) => ({
+      ...safeUser(request.telehealthUser!),
+      otpVerified: request.telehealthSession!.otpVerified,
+    }),
   );
 
   app.post(
@@ -319,3 +425,5 @@ export const telehealthAuthRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 };
+
+export { requireTelehealthAuth, requireVerifiedTelehealthAuth, safeUser as publicTelehealthUser };

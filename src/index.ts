@@ -1,10 +1,19 @@
 import "dotenv/config";
 import { buildApp } from "./app.js";
 import { loadEnv } from "./config/env.js";
+import { isEmailConfigured } from "./lib/email.js";
 
 async function main() {
   const env = loadEnv();
   const app = await buildApp();
+
+  if (!isEmailConfigured()) {
+    app.log.warn(
+      "Email delivery is NOT configured (RESEND_API_KEY or SMTP). Telehealth sign-up and login will fail until email is set up.",
+    );
+  } else {
+    app.log.info("Email delivery configured for telehealth OTP codes");
+  }
 
   try {
     await app.listen({ port: env.PORT, host: env.HOST });
